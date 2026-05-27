@@ -155,7 +155,7 @@ export default async function buildModule(
     "  • Every id declared in imageQueries/generatedFigures must appear in `article` exactly once. Every `[[IMG:<id>]]` in the text must have a matching entry in one of the arrays.",
     "  • videos: 1-3 youtube/youtu.be links — the user verifies URLs themselves.",
     "  • links: 2-5 authoritative articles.",
-    "  • diagrams (mermaid): only flowchart/sequence/class — where mermaid is genuinely more convenient than an image. For visual schemes use generatedFigures.",
+    "  • diagrams (mermaid): only flowchart/sequence/class — where mermaid is genuinely more convenient than an image. For visual schemes use generatedFigures. ALWAYS double-quote node labels that contain non-ASCII characters, spaces with punctuation, slashes, parentheses, or pipes — e.g. `A[\"Запуск claude\"]`, `K[\"/compact — сжатие\"]`. Unquoted labels with special characters break the parser. Reflex auto-repairs broken diagrams, but quoted labels save a retry round-trip.",
     "  • homework: 3-5 practical exercises with a verifiable result.",
     "",
     "Reply with JSON ONLY on a single line, no markdown fences.",
@@ -210,6 +210,9 @@ export default async function buildModule(
   const articleClean = stripPlaceholderMarkers(articleWithImages);
   const unplaced = allImages.filter((im) => !placedIds.has(im.id));
 
+  const rawDiagrams = sanitizeArr(draft.diagrams, ["title", "mermaid"]) as ModuleContent["diagrams"];
+  const validatedDiagrams = await validateAndRepairDiagrams(rawDiagrams);
+
   const content: Omit<ModuleContent, "relPath"> = {
     courseId: args.courseId,
     moduleId: args.moduleId,
@@ -218,7 +221,7 @@ export default async function buildModule(
     videos: sanitizeArr(draft.videos, ["title", "url"]) as ModuleContent["videos"],
     links: sanitizeArr(draft.links, ["title", "url"]) as ModuleContent["links"],
     images: allImages,
-    diagrams: sanitizeArr(draft.diagrams, ["title", "mermaid"]) as ModuleContent["diagrams"],
+    diagrams: validatedDiagrams,
     homework: Array.isArray(draft.homework)
       ? draft.homework.map(String).filter(Boolean).slice(0, 8)
       : [],
@@ -488,4 +491,73 @@ function sanitizeArr(
     out.push(row);
   }
   return out;
+}
+
+/**
+ * Validate each diagram via `reflex.mermaid.validate`. On parse failure
+ * give the agent one repair attempt with the original source + the
+ * lexer/parser message. Drop the diagram if the fix still doesn't pass —
+ * better no diagram than a broken one in the rendered article.
+ */
+async function validateAndRepairDiagrams(
+  diagrams: ModuleContent["diagrams"],
+): Promise<ModuleContent["diagrams"]> {
+  const validator = (reflex as unknown as {
+    mermaid?: { validate: (a: { source: string }) => Promise<{ ok: boolean; error?: string }> };
+  }).mermaid;
+  if (!validator) return diagrams;
+
+  const out: ModuleContent["diagrams"] = [];
+  for (const d of diagrams) {
+    const first = await validator.validate({ source: d.mermaid });
+    if (first.ok) {
+      out.push(d);
+      continue;
+    }
+    const repaired = await repairDiagram(d, first.error ?? "parse error");
+    if (!repaired) continue;
+    const second = await validator.validate({ source: repaired });
+    if (second.ok) {
+      out.push({ ...d, mermaid: repaired });
+    }
+    // Else drop silently — leaving a broken diagram is worse than nothing.
+  }
+  return out;
+}
+
+async function repairDiagram(
+  d: { title?: string; mermaid: string },
+  errorMessage: string,
+): Promise<string | null> {
+  const prompt = [
+    "A Mermaid diagram failed to parse. Fix it.",
+    "",
+    `Title: ${d.title ?? "(untitled)"}`,
+    `Parser error: ${errorMessage}`,
+    "",
+    "Common causes:",
+    "  • Non-ASCII labels (Cyrillic, special chars) not wrapped in double quotes",
+    "  • Labels starting with `/`, `(`, `>`, `{`, `\\` (shape modifiers) — wrap in quotes",
+    "  • Edge labels with parentheses or pipes inside — wrap in quotes",
+    "  • Mismatched brackets `[`, `]`, `(`, `)`",
+    "",
+    "Return ONLY the fixed Mermaid source — no markdown fences, no commentary.",
+    "Keep the diagram type and intent identical; just make it parse.",
+    "",
+    "## Broken diagram",
+    d.mermaid,
+  ].join("\n");
+  try {
+    const r = await reflex.agent.invoke({
+      prompt,
+      timeoutMs: 90_000,
+    });
+    const text = (r.text ?? "").trim();
+    if (!text) return null;
+    // Strip code fences if the agent ignored the instruction.
+    const fenced = /^```(?:mermaid)?\n([\s\S]*?)\n```\s*$/i.exec(text);
+    return (fenced ? fenced[1]! : text).trim();
+  } catch {
+    return null;
+  }
 }
