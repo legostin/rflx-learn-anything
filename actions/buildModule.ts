@@ -1,5 +1,6 @@
 import { reflex } from "@host/api";
 import { callJsonAgent, snippet } from "./_json";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * Compile a learning module: agent writes a full markdown article, then
@@ -158,6 +159,8 @@ export default async function buildModule(
     "  • homework: 3-5 practical exercises with a verifiable result.",
     "",
     "Reply with JSON ONLY on a single line, no markdown fences.",
+    "",
+    TERMINOLOGY_RULE,
     "",
     webContext
       ? `## Web sources to ground on\n${webContext}`

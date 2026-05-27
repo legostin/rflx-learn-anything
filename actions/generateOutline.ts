@@ -2,6 +2,7 @@ import { reflex } from "@host/api";
 import type { TutorQA } from "./tutorAsk";
 import { callJsonAgent, snippet } from "./_json";
 import { writeCourse } from "./_store";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * Build a course outline based on topic + wizard answers. Returns a
@@ -53,6 +54,8 @@ export default async function generateOutline(
     "  • module id — kebab-case, latin letters + digits.",
     "Reply with JSON ONLY on a single line, no markdown:",
     `  {"modules":[{"id":"intro","title":"…","objective":"…","estMinutes":30}, ...]}`,
+    "",
+    TERMINOLOGY_RULE,
   ].join("\n");
 
   const result = await callJsonAgent<OutlineModule[]>({

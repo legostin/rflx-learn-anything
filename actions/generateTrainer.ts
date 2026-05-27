@@ -1,4 +1,5 @@
 import { reflex } from "@host/api";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * Ask the agent to write an interactive trainer (small standalone HTML
@@ -48,6 +49,8 @@ export default async function generateTrainer(
     "  • No navigator/window globals that break inside a sandbox iframe (no localStorage, no parent).",
     "  • THE CODE MUST WORK. No placeholder functions.",
     "Reply with HTML ONLY (no JSON wrapper, no markdown fence).",
+    "",
+    TERMINOLOGY_RULE,
     "",
     `## Trainer idea\n${userBrief}`,
   ].join("\n");

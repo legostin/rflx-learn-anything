@@ -1,4 +1,5 @@
 import { reflex } from "@host/api";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * "Explain this" feature: user highlights a snippet inside the module
@@ -48,6 +49,8 @@ export default async function explainSelection(
   }
 
   promptLines.push(
+    "",
+    TERMINOLOGY_RULE,
     "",
     `## Surrounding context\n${args.context.slice(0, 1500)}`,
     "",

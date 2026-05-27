@@ -1,5 +1,6 @@
 import { reflex } from "@host/api";
 import { extractJson } from "./_json";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * Generate a 5-question multiple-choice quiz for a module. Each item:
@@ -36,6 +37,8 @@ export default async function generateQuiz(
     "  • Explanation of why the answer is correct — 1-2 sentences.",
     "Reply with JSON ONLY on a single line:",
     `  {"questions":[{"stem":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}, ...]}`,
+    "",
+    TERMINOLOGY_RULE,
     "",
     `## Module material\n${trimmed}`,
   ].join("\n");

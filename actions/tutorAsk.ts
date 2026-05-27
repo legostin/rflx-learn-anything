@@ -1,5 +1,6 @@
 import { reflex } from "@host/api";
 import { extractJson } from "./_json";
+import { TERMINOLOGY_RULE } from "./_prompt";
 
 /**
  * Wizard step. Given the topic + prior Q&A, the agent decides whether
@@ -61,6 +62,8 @@ export default async function tutorAsk(
     `  {"done":false,"question":"...","header":"level|goal|time|format|...","choices":["...","..."]}`,
     "  or",
     `  {"done":true}`,
+    "",
+    TERMINOLOGY_RULE,
     "",
     prior ? `## Previous answers\n${prior}` : "## This is the first question",
     `\nQuestions asked so far: ${turns} (maximum ${MAX_TURNS}).`,
