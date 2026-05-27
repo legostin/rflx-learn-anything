@@ -192,6 +192,10 @@ export default function LearnAnythingUtility() {
             onProgress={async (mark) => {
               await markProgress(view.course, view.module.id, mark);
               await refreshList();
+              // Refresh the dashboard KPI on every progress change so
+              // marking complete / incomplete and quiz scoring all flow
+              // through to the home card.
+              await reflex.actions.invoke({ name: "refreshCourseCard" });
             }}
             onError={setError}
           />
@@ -861,7 +865,6 @@ function ModuleView({
     const score = Math.round((correct / quiz.length) * 100);
     setQuizSubmitted(true);
     await onProgress({ quizScore: score, completed: score >= 60 });
-    await reflex.actions.invoke({ name: "refreshCourseCard" });
   };
 
   const makeTrainer = async () => {
